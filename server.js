@@ -12,12 +12,24 @@ app.get('/', (req, res) => {
 
 app.get('/api/supply', async (req, res) => {
   try {
-    const url = `https://api.helius.xyz/v0/token-metadata/${MINT_ADDRESS}?api-key=${HELIUS_API_KEY}`;
-    const response = await axios.get(url);
-    const data = response.data;
+    const response = await axios.post(
+      `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getTokenSupply",
+        params: [MINT_ADDRESS]
+      },
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
 
-    const decimals = data.decimals || 0;
-    const rawSupply = data.supply || "0";
+    const supplyInfo = response.data.result;
+    if (!supplyInfo) throw new Error('No supply data returned');
+
+    const decimals = supplyInfo.decimals || 0;
+    const rawSupply = supplyInfo.amount || "0";
     const totalSupply = Number(rawSupply) / (10 ** decimals);
 
     const burnedTokens = 150000000;
@@ -34,7 +46,7 @@ app.get('/api/supply', async (req, res) => {
       decimals: decimals
     });
   } catch (error) {
-    console.error("Error fetching supply from Helius REST API:", error.message);
+    console.error("Error fetching supply from Helius JSON-RPC:", error.response ? error.response.data : error.message);
     res.status(500).json({ error: "Could not fetch supply from Helius API" });
   }
 });
