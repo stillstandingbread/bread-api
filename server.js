@@ -1,68 +1,44 @@
 const express = require('express');
 const axios = require('axios');
 const app = express();
-
 const PORT = process.env.PORT || 3000;
-const HELIUS_API_KEY = process.env.HELIUS_API_KEY || 'YOUR_HELIUS_API_KEY_HERE';
-const MINT_ADDRESS = "J8ZhEwucyYBaRiA4thhAzFk1wPvy3C5HB5KYf8Li";
 
-const MAX_SUPPLY = 1000000000;
-const BURNED_TOKENS = 150000000;
-const LOCKED_TOKENS = 50000000;
-
-// Fetch circulating supply from Helius API
-async function getCirculatingSupply() {
-  try {
-    const response = await axios.post(
-      `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "getTokenSupply",
-        params: [
-          { mint: MINT_ADDRESS }
-        ]
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    if (response.data && response.data.result && response.data.result.value) {
-      // Return circulating supply as a number with 6 decimal places precision
-      return parseFloat(response.data.result.value.uiAmountString);
-    } else {
-      console.error('Unexpected Helius response format:', response.data);
-      return null;
-    }
-  } catch (error) {
-    console.error('Error fetching circulating supply:', error.response?.data || error.message);
-    return null;
-  }
-}
+const HELIUS_API_KEY = process.env.HELIUS_API_KEY || '2058d67f-943a-4138-beb0-86eef9a78d38';
+const MINT_ADDRESS = 'J8ZhEwucyYBaRiA4thhAzFk1wPvy3C5HB5KYf8Li';
 
 app.get('/', (req, res) => {
   res.send('API do $BREAD está online!');
 });
 
 app.get('/api/supply', async (req, res) => {
-  const circulatingSupply = await getCirculatingSupply();
+  try {
+    const url = `https://api.helius.xyz/v0/token-metadata/${MINT_ADDRESS}?api-key=${HELIUS_API_KEY}`;
+    const response = await axios.get(url);
+    const data = response.data;
 
-  if (circulatingSupply === null) {
-    return res.status(500).json({ error: 'Could not fetch circulating supply from Helius API' });
+    const decimals = data.decimals || 0;
+    const rawSupply = data.supply || "0";
+    const totalSupply = Number(rawSupply) / (10 ** decimals);
+
+    const burnedTokens = 150000000;
+    const lockedTokens = 50000000;
+    const circulatingSupply = totalSupply - burnedTokens - lockedTokens;
+
+    res.json({
+      token: "$BREAD",
+      mint_address: MINT_ADDRESS,
+      total_supply: totalSupply,
+      burned_tokens: burnedTokens,
+      locked_tokens: lockedTokens,
+      circulating_supply: circulatingSupply,
+      decimals: decimals
+    });
+  } catch (error) {
+    console.error("Error fetching supply from Helius REST API:", error.message);
+    res.status(500).json({ error: "Could not fetch supply from Helius API" });
   }
-
-  res.json({
-    token: "$BREAD",
-    mint_address: MINT_ADDRESS,
-    max_supply: MAX_SUPPLY,
-    burned_tokens: BURNED_TOKENS,
-    locked_tokens: LOCKED_TOKENS,
-    circulating_supply: circulatingSupply
-  });
 });
 
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
+});
