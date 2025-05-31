@@ -1,7 +1,9 @@
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
-
+app.get('/', (req, res) => {
+  res.send('API do $BREAD está online!');
+});
 const TOKEN_DATA = {
   token: "$BREAD",
   mint_address: "J8ZhEwucyYBaRiA4thhAzFk1wPvy3C5HB5KYf8Li",
